@@ -48,12 +48,10 @@ textarea {
 .rgwb-equal-height .rgwb-library-card {
   display: flex !important;
   flex-direction: column;
-  height: var(--rgwb-card-height) !important;
-  min-height: var(--rgwb-card-height) !important;
-  max-height: var(--rgwb-card-height) !important;
-  overflow: hidden;
+  height: 100% !important;
+  min-height: var(--rgwb-card-min-height) !important;
 }
 
 .rgwb-equal-height .rgwb-review-text {
-  overflow: hidden;
+  flex: 1 1 auto;
 }

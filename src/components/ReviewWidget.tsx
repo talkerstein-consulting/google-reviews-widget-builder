@@ -101,10 +101,6 @@ function dateLabel(review: GoogleReview, mode: WidgetConfig["dateDisplay"]) {
   return `${Math.max(1, Math.round(months / 12))}y ago`;
 }
 
-function reviewLineClamp(config: WidgetConfig) {
-  return Math.max(2, Math.floor((config.cardMinHeight - 112) / (config.reviewFontSize * 1.55)));
-}
-
 function ReviewCard({
   config,
   review,
@@ -115,7 +111,7 @@ function ReviewCard({
   const reviewerName = displayName(review, config.nameDisplay);
   const timestamp = dateLabel(review, config.dateDisplay);
   const centered = config.template === "spotlight";
-  const equalCardHeight = config.equalHeightCards ? config.cardMinHeight : undefined;
+  const equalCardMinHeight = config.equalHeightCards ? config.cardMinHeight : undefined;
   const authorBlock = (
     <div className={`flex min-w-0 items-center gap-3 ${centered ? "justify-center" : ""}`}>
       {config.showReviewerPhoto ? (
@@ -155,21 +151,16 @@ function ReviewCard({
         backgroundColor: config.cardColor,
         borderColor: `${config.accentColor}33`,
         borderRadius: config.cardRadius,
-        height: equalCardHeight,
-        minHeight: equalCardHeight,
-        maxHeight: equalCardHeight,
-        overflow: config.equalHeightCards ? "hidden" : undefined,
+        height: config.equalHeightCards && config.layout !== "masonry" ? "100%" : undefined,
+        minHeight: equalCardMinHeight,
         marginBottom: config.layout === "masonry" ? config.cardGap : undefined,
       }}
     >
       {config.template === "bubble" ? null : <div className="mb-3">{authorBlock}</div>}
       <p
-        className={`leading-6 opacity-90 ${config.equalHeightCards ? "flex-1 overflow-hidden" : ""}`}
+        className={`leading-6 opacity-90 ${config.equalHeightCards ? "flex-1" : ""}`}
         style={{
           fontSize: config.reviewFontSize,
-          display: config.equalHeightCards ? "-webkit-box" : undefined,
-          WebkitBoxOrient: config.equalHeightCards ? "vertical" : undefined,
-          WebkitLineClamp: config.equalHeightCards ? reviewLineClamp(config) : undefined,
         }}
       >
         {review.comment.length > config.maxCharacters
@@ -322,11 +313,11 @@ export function ReviewWidget({ config, data, loading, embedded = false }: Review
   const reviews = data?.reviews ?? [];
   const place = data?.place;
   const filteredReviews = prepareReviews(reviews, config);
-  const equalCardHeight = config.equalHeightCards ? config.cardMinHeight : undefined;
-  const wrapperStyle: CSSProperties & { "--rgwb-card-height": string } = {
+  const equalCardMinHeight = config.equalHeightCards ? config.cardMinHeight : undefined;
+  const wrapperStyle: CSSProperties & { "--rgwb-card-min-height": string } = {
     backgroundColor: config.backgroundColor,
     color: config.textColor,
-    "--rgwb-card-height": `${config.cardMinHeight}px`,
+    "--rgwb-card-min-height": `${config.cardMinHeight}px`,
   };
 
   if (!place || (!loading && reviews.length === 0 && config.layout !== "badge")) {
@@ -353,20 +344,14 @@ export function ReviewWidget({ config, data, loading, embedded = false }: Review
       borderColor: `${config.accentColor}33`,
       color: config.textColor,
       borderRadius: config.cardRadius,
-      height: equalCardHeight,
-      minHeight: equalCardHeight,
-      maxHeight: equalCardHeight,
-      overflow: config.equalHeightCards ? "hidden" : undefined,
+      height: config.equalHeightCards ? "100%" : undefined,
+      minHeight: equalCardMinHeight,
       display: config.equalHeightCards ? "flex" : undefined,
       flexDirection: config.equalHeightCards ? "column" : undefined,
     },
     reviewTextStyle: {
       color: config.textColor,
       fontSize: config.reviewFontSize,
-      overflow: config.equalHeightCards ? "hidden" : undefined,
-      display: config.equalHeightCards ? "-webkit-box" : undefined,
-      WebkitBoxOrient: config.equalHeightCards ? "vertical" : undefined,
-      WebkitLineClamp: config.equalHeightCards ? reviewLineClamp(config) : undefined,
     },
     reviewerNameStyle: { color: config.textColor },
     reviewerDateStyle: { color: config.textColor, opacity: 0.7 },
