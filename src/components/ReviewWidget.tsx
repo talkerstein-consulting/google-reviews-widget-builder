@@ -1,13 +1,9 @@
 "use client";
 
-import { ExternalLink, Star } from "lucide-react";
-import type { ComponentType, CSSProperties } from "react";
-import { ReactGoogleReviews } from "react-google-reviews";
-import "react-google-reviews/dist/index.css";
+import { ChevronLeft, ChevronRight, ExternalLink, Star } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { GoogleReview, PlaceReviewsPayload, PlaceSummary } from "@/lib/place-types";
-import type { WidgetConfig } from "@/lib/widget-config";
-
-const GoogleReviews = ReactGoogleReviews as unknown as ComponentType<Record<string, unknown>>;
+import type { FontFamily, LogoVariant, WidgetConfig } from "@/lib/widget-config";
 
 type ReviewWidgetProps = {
   config: WidgetConfig;
@@ -15,6 +11,38 @@ type ReviewWidgetProps = {
   loading?: boolean;
   embedded?: boolean;
 };
+
+const FONT_STACKS: Record<FontFamily, string | undefined> = {
+  inherit: undefined,
+  serif: 'Georgia, "Times New Roman", serif',
+  sans: '"Helvetica Neue", Arial, sans-serif',
+  mono: '"SFMono-Regular", ui-monospace, monospace',
+};
+
+// Google's Places API terms require visible attribution back to Google — this mark
+// is always rendered (icon or full) and is not a config option that can be disabled.
+function GoogleMark({ variant, color }: { variant: LogoVariant; color: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium opacity-70" style={{ color }}>
+      <svg viewBox="0 0 48 48" className="h-3.5 w-3.5" aria-hidden="true">
+        <path
+          fill="#4285F4"
+          d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"
+        />
+        <path
+          fill="#34A853"
+          d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.32-9.08H4.34v5.7C7.96 41.07 15.4 46 24 46z"
+        />
+        <path fill="#FBBC05" d="M11.68 28.17A13.9 13.9 0 0 1 10.87 24c0-1.45.25-2.86.71-4.17v-5.7H4.34A21.93 21.93 0 0 0 2 24c0 3.55.85 6.91 2.34 9.87z" />
+        <path
+          fill="#EA4335"
+          d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.13l7.34 5.7c1.74-5.21 6.59-9.08 12.32-9.08z"
+        />
+      </svg>
+      {variant === "full" ? "Reviews from Google" : "Google"}
+    </span>
+  );
+}
 
 function StarRow({ rating, color }: { rating: number; color: string }) {
   return (
@@ -180,7 +208,12 @@ function Header({
   place: PlaceSummary;
 }) {
   if (!config.showHeader) {
-    return null;
+    // Header text/CTA can be hidden, but Google attribution cannot — show the bare minimum.
+    return (
+      <div className="mb-3">
+        <GoogleMark variant={config.logoVariant} color={config.textColor} />
+      </div>
+    );
   }
 
   const title = config.customTitle.trim() || place.name;
@@ -188,8 +221,8 @@ function Header({
   return (
     <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <div className="text-sm font-medium opacity-70">Google reviews</div>
-        <h2 className="font-semibold" style={{ fontSize: config.titleFontSize }}>
+        <GoogleMark variant={config.logoVariant} color={config.textColor} />
+        <h2 className="mt-1 font-semibold" style={{ fontSize: config.titleFontSize }}>
           {title}
         </h2>
         {config.showAddress && place.formattedAddress ? (
@@ -289,6 +322,269 @@ function ReviewsLayout({
   );
 }
 
+function CarouselLayout({
+  config,
+  place,
+  reviews,
+}: {
+  config: WidgetConfig;
+  place: PlaceSummary;
+  reviews: GoogleReview[];
+}) {
+  const perView = Math.max(1, config.maxItems);
+  const visibleReviews = prepareReviews(reviews, config);
+  const pageCount = Math.max(1, Math.ceil(visibleReviews.length / perView));
+  const [page, setPage] = useState(0);
+  const activePage = Math.min(page, pageCount - 1);
+
+  useEffect(() => {
+    setPage(0);
+  }, [visibleReviews.length, perView]);
+
+  useEffect(() => {
+    if (!config.carouselAutoplay || pageCount <= 1) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setPage((current) => (current + 1) % pageCount);
+    }, config.carouselSpeed);
+    return () => window.clearInterval(timer);
+  }, [config.carouselAutoplay, config.carouselSpeed, pageCount]);
+
+  const pageReviews = visibleReviews.slice(activePage * perView, activePage * perView + perView);
+
+  return (
+    <section className="rgwb-reviews-widget" style={{ color: config.textColor }}>
+      <Header config={config} place={place} />
+
+      {visibleReviews.length === 0 ? (
+        <div
+          className="rounded-lg border border-dashed p-6 text-center text-sm opacity-80"
+          style={{ borderColor: `${config.accentColor}55` }}
+        >
+          No reviews match the current filters.
+        </div>
+      ) : (
+        <div className="relative">
+          <div
+            className="grid"
+            style={{ gap: config.cardGap, gridTemplateColumns: `repeat(${pageReviews.length}, minmax(0, 1fr))` }}
+          >
+            {pageReviews.map((review) => (
+              <ReviewCard key={`${review.reviewId}-${review.reviewer.displayName}`} config={config} review={review} />
+            ))}
+          </div>
+
+          {pageCount > 1 ? (
+            <>
+              <button
+                type="button"
+                aria-label="Previous reviews"
+                onClick={() => setPage((current) => (current - 1 + pageCount) % pageCount)}
+                className="absolute -left-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border bg-white/90 shadow-sm"
+                style={{ borderColor: `${config.accentColor}55`, color: config.accentColor }}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                aria-label="Next reviews"
+                onClick={() => setPage((current) => (current + 1) % pageCount)}
+                className="absolute -right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border bg-white/90 shadow-sm"
+                style={{ borderColor: `${config.accentColor}55`, color: config.accentColor }}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </>
+          ) : null}
+
+          {config.showDots && pageCount > 1 ? (
+            <div className="mt-3 flex items-center justify-center gap-1.5">
+              {Array.from({ length: pageCount }).map((_, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  aria-label={`Go to page ${index + 1}`}
+                  onClick={() => setPage(index)}
+                  className="h-1.5 rounded-full transition-all"
+                  style={{
+                    width: index === activePage ? 18 : 6,
+                    backgroundColor: index === activePage ? config.accentColor : `${config.accentColor}40`,
+                  }}
+                />
+              ))}
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {place.profileUrl ? (
+        <a
+          href={place.profileUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-4 inline-flex items-center gap-2 text-sm font-medium"
+          style={{ color: config.linkColor }}
+        >
+          View on Google <ExternalLink className="h-4 w-4" />
+        </a>
+      ) : null}
+    </section>
+  );
+}
+
+function MarqueeRow({
+  config,
+  reviews,
+  direction,
+}: {
+  config: WidgetConfig;
+  reviews: GoogleReview[];
+  direction: 1 | -1;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const offsetRef = useRef(0);
+  const hoveredRef = useRef(false);
+  const doubledReviews = useMemo(() => [...reviews, ...reviews], [reviews]);
+
+  useEffect(() => {
+    let frame = 0;
+    let lastTime: number | null = null;
+
+    const step = (time: number) => {
+      const track = trackRef.current;
+      if (track) {
+        const halfWidth = track.scrollWidth / 2;
+        if (lastTime !== null && !(config.pauseOnHover && hoveredRef.current) && halfWidth > 0) {
+          const dt = (time - lastTime) / 1000;
+          offsetRef.current += direction * config.marqueeSpeedPxPerSec * dt;
+          offsetRef.current = ((offsetRef.current % halfWidth) + halfWidth) % halfWidth;
+          track.style.transform = `translateX(${-offsetRef.current}px)`;
+        }
+      }
+      lastTime = time;
+      frame = window.requestAnimationFrame(step);
+    };
+
+    frame = window.requestAnimationFrame(step);
+    return () => window.cancelAnimationFrame(frame);
+  }, [config.marqueeSpeedPxPerSec, config.pauseOnHover, direction, doubledReviews.length]);
+
+  return (
+    <div
+      className="overflow-hidden"
+      onMouseEnter={() => {
+        hoveredRef.current = true;
+      }}
+      onMouseLeave={() => {
+        hoveredRef.current = false;
+      }}
+      onTouchStart={() => {
+        hoveredRef.current = true;
+      }}
+      onTouchEnd={() => {
+        hoveredRef.current = false;
+      }}
+    >
+      <div ref={trackRef} className="flex w-max" style={{ gap: config.cardGap, willChange: "transform" }}>
+        {doubledReviews.map((review, index) => (
+          <div key={`${review.reviewId}-${review.reviewer.displayName}-${index}`} style={{ width: config.width ? undefined : 320, flex: "0 0 auto" }}>
+            <div style={{ width: 320 }}>
+              <ReviewCard config={config} review={review} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MarqueeLayout({
+  config,
+  place,
+  reviews,
+}: {
+  config: WidgetConfig;
+  place: PlaceSummary;
+  reviews: GoogleReview[];
+}) {
+  const visibleReviews = prepareReviews(reviews, config);
+  // Two opposing-direction rows read as chaotic on narrow screens — collapse to one row there.
+  const [singleRow, setSingleRow] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 768px)");
+    const update = () => setSingleRow(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  const rows = singleRow ? 1 : config.marqueeRows;
+
+  return (
+    <section className="rgwb-reviews-widget" style={{ color: config.textColor }}>
+      <Header config={config} place={place} />
+
+      {visibleReviews.length === 0 ? (
+        <div
+          className="rounded-lg border border-dashed p-6 text-center text-sm opacity-80"
+          style={{ borderColor: `${config.accentColor}55` }}
+        >
+          No reviews match the current filters.
+        </div>
+      ) : (
+        <div className="flex flex-col" style={{ gap: config.cardGap }}>
+          {Array.from({ length: rows }).map((_, rowIndex) => {
+            const direction: 1 | -1 =
+              config.marqueeDirection === "alternate" && rowIndex % 2 === 1 ? -1 : 1;
+            return <MarqueeRow key={rowIndex} config={config} reviews={visibleReviews} direction={direction} />;
+          })}
+        </div>
+      )}
+
+      {place.profileUrl ? (
+        <a
+          href={place.profileUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-4 inline-flex items-center gap-2 text-sm font-medium"
+          style={{ color: config.linkColor }}
+        >
+          View on Google <ExternalLink className="h-4 w-4" />
+        </a>
+      ) : null}
+    </section>
+  );
+}
+
+function BadgeLayout({ config, place }: { config: WidgetConfig; place: PlaceSummary }) {
+  return (
+    <div
+      className="inline-flex flex-col items-center gap-2 rounded-lg border p-5 text-center"
+      style={{ backgroundColor: config.cardColor, borderColor: `${config.accentColor}33`, borderRadius: config.cardRadius }}
+    >
+      <GoogleMark variant={config.logoVariant} color={config.textColor} />
+      <div className="text-3xl font-bold">{(place.averageRating ?? 0).toFixed(1)}</div>
+      <StarRow rating={place.averageRating ?? 0} color={config.starColor} />
+      {place.totalReviewCount ? (
+        <div className="text-sm opacity-70">{place.totalReviewCount} reviews</div>
+      ) : null}
+      {place.profileUrl ? (
+        <a
+          href={place.profileUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium"
+          style={{ color: config.linkColor }}
+        >
+          {config.reviewButtonLabel || "Read all on Google"} <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
 function EmptyWidget({ config, loading }: { config: WidgetConfig; loading?: boolean }) {
   return (
     <div
@@ -312,63 +608,16 @@ function EmptyWidget({ config, loading }: { config: WidgetConfig; loading?: bool
 export function ReviewWidget({ config, data, loading, embedded = false }: ReviewWidgetProps) {
   const reviews = data?.reviews ?? [];
   const place = data?.place;
-  const filteredReviews = prepareReviews(reviews, config);
-  const equalCardMinHeight = config.equalHeightCards ? config.cardMinHeight : undefined;
   const wrapperStyle: CSSProperties & { "--rgwb-card-min-height": string } = {
     backgroundColor: config.backgroundColor,
     color: config.textColor,
+    fontFamily: FONT_STACKS[config.fontFamily],
     "--rgwb-card-min-height": `${config.cardMinHeight}px`,
   };
 
   if (!place || (!loading && reviews.length === 0 && config.layout !== "badge")) {
     return <EmptyWidget config={config} loading={loading} />;
   }
-
-  const commonProps = {
-    reviews: filteredReviews,
-    isLoading: loading,
-    theme: config.theme,
-    nameDisplay: config.nameDisplay,
-    dateDisplay: config.dateDisplay,
-    logoVariant: config.logoVariant,
-    maxCharacters: config.maxCharacters,
-    hideEmptyReviews: config.hideEmptyReviews,
-    disableTranslation: config.disableTranslation,
-    averageRating: place?.averageRating ?? 5,
-    totalReviewCount: place?.totalReviewCount ?? reviews.length,
-    profileUrl: place?.profileUrl ?? undefined,
-    accessibility: true,
-    reviewVariant: config.reviewVariant,
-    reviewCardStyle: {
-      backgroundColor: config.cardColor,
-      borderColor: `${config.accentColor}33`,
-      color: config.textColor,
-      borderRadius: config.cardRadius,
-      height: config.equalHeightCards ? "100%" : undefined,
-      minHeight: equalCardMinHeight,
-      display: config.equalHeightCards ? "flex" : undefined,
-      flexDirection: config.equalHeightCards ? "column" : undefined,
-    },
-    reviewTextStyle: {
-      color: config.textColor,
-      fontSize: config.reviewFontSize,
-    },
-    reviewerNameStyle: { color: config.textColor },
-    reviewerDateStyle: { color: config.textColor, opacity: 0.7 },
-    badgeContainerStyle: {
-      backgroundColor: config.cardColor,
-      color: config.textColor,
-      borderColor: `${config.accentColor}33`,
-      borderRadius: config.cardRadius,
-    },
-    badgeRatingStyle: { color: config.textColor },
-    badgeLabelStyle: { color: config.textColor },
-    badgeLinkStyle: { color: config.linkColor },
-    carouselCardClassName: config.equalHeightCards ? "rgwb-carousel-frame" : undefined,
-    carouselCardStyle: config.equalHeightCards ? { height: "100%" } : undefined,
-    reviewCardClassName: config.equalHeightCards ? "rgwb-library-card" : undefined,
-    reviewTextClassName: config.equalHeightCards ? "rgwb-review-text" : undefined,
-  };
 
   return (
     <div
@@ -377,19 +626,14 @@ export function ReviewWidget({ config, data, loading, embedded = false }: Review
       }`}
       style={wrapperStyle}
     >
-      {["grid", "list", "masonry"].includes(config.layout) && place ? (
-        <ReviewsLayout config={config} place={place} reviews={reviews} />
-      ) : config.layout === "badge" ? (
-        <GoogleReviews {...commonProps} layout="badge" badgeLabel="Google Rating" />
+      {config.layout === "badge" ? (
+        <BadgeLayout config={config} place={place} />
+      ) : config.layout === "carousel" ? (
+        <CarouselLayout config={config} place={place} reviews={reviews} />
+      ) : config.layout === "marquee" ? (
+        <MarqueeLayout config={config} place={place} reviews={reviews} />
       ) : (
-        <GoogleReviews
-          {...commonProps}
-          layout="carousel"
-          carouselAutoplay={config.carouselAutoplay}
-          carouselSpeed={config.carouselSpeed}
-          maxItems={config.maxItems}
-          showDots={config.showDots}
-        />
+        <ReviewsLayout config={config} place={place} reviews={reviews} />
       )}
     </div>
   );

@@ -9,6 +9,7 @@ import {
   buildEmbedUrl,
   DEFAULT_WIDGET_CONFIG,
   normalizeWidgetConfig,
+  STYLE_PRESETS,
   type WidgetConfig,
   type WidgetLayout,
 } from "@/lib/widget-config";
@@ -280,7 +281,7 @@ export function WidgetBuilder() {
                 Layout
               </div>
               <div className="grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1">
-                {(["carousel", "grid", "list", "masonry", "badge"] as const).map((layout) => (
+                {(["carousel", "marquee", "grid", "list", "masonry", "badge"] as const).map((layout) => (
                   <LayoutButton
                     key={layout}
                     layout={layout}
@@ -353,6 +354,22 @@ export function WidgetBuilder() {
                 <Palette className="h-4 w-4 text-teal-700" />
                 Style
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPatch(STYLE_PRESETS.light)}
+                  className="h-9 rounded-md border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-100"
+                >
+                  Light preset
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPatch(STYLE_PRESETS.dark)}
+                  className="h-9 rounded-md border border-slate-300 bg-slate-950 text-sm font-medium text-white hover:bg-slate-800"
+                >
+                  Dark preset
+                </button>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <ColorControl label="Accent" value={config.accentColor} onChange={(accentColor) => setPatch({ accentColor })} />
                 <ColorControl label="Canvas" value={config.backgroundColor} onChange={(backgroundColor) => setPatch({ backgroundColor })} />
@@ -376,6 +393,17 @@ export function WidgetBuilder() {
                   min={11}
                   max={24}
                   onChange={(reviewFontSize) => setPatch({ reviewFontSize })}
+                />
+                <SelectControl
+                  label="Font"
+                  value={config.fontFamily}
+                  onChange={(fontFamily) => setPatch({ fontFamily })}
+                  options={[
+                    { value: "inherit", label: "Inherit from page" },
+                    { value: "sans", label: "Sans" },
+                    { value: "serif", label: "Serif" },
+                    { value: "mono", label: "Mono" },
+                  ]}
                 />
               </div>
             </section>
@@ -439,7 +467,6 @@ export function WidgetBuilder() {
                   options={[
                     { value: "icon", label: "Icon" },
                     { value: "full", label: "Full" },
-                    { value: "none", label: "Hidden" },
                   ]}
                 />
                 <NumberControl
@@ -519,6 +546,41 @@ export function WidgetBuilder() {
                 <ToggleControl label="Autoplay" checked={config.carouselAutoplay} onChange={(carouselAutoplay) => setPatch({ carouselAutoplay })} />
                 <ToggleControl label="Dots" checked={config.showDots} onChange={(showDots) => setPatch({ showDots })} />
               </div>
+            </section>
+
+            <section className="space-y-3">
+              <div className="text-sm font-semibold text-slate-900">Marquee</div>
+              <div className="grid grid-cols-2 gap-3">
+                <NumberControl
+                  label="Rows"
+                  value={config.marqueeRows}
+                  min={1}
+                  max={2}
+                  onChange={(marqueeRows) => setPatch({ marqueeRows })}
+                />
+                <NumberControl
+                  label="Speed (px/s)"
+                  value={config.marqueeSpeedPxPerSec}
+                  min={5}
+                  max={200}
+                  step={5}
+                  onChange={(marqueeSpeedPxPerSec) => setPatch({ marqueeSpeedPxPerSec })}
+                />
+                <SelectControl
+                  label="Row direction"
+                  value={config.marqueeDirection}
+                  onChange={(marqueeDirection) => setPatch({ marqueeDirection })}
+                  options={[
+                    { value: "alternate", label: "Alternate" },
+                    { value: "same", label: "Same" },
+                  ]}
+                />
+              </div>
+              <ToggleControl
+                label="Pause on hover / touch"
+                checked={config.pauseOnHover}
+                onChange={(pauseOnHover) => setPatch({ pauseOnHover })}
+              />
             </section>
           </div>
         </aside>

@@ -1,11 +1,14 @@
-export type WidgetLayout = "carousel" | "badge" | "grid" | "list" | "masonry";
+export type WidgetLayout = "carousel" | "marquee" | "badge" | "grid" | "list" | "masonry";
 export type WidgetTheme = "light" | "dark";
 export type ReviewVariant = "card" | "testimonial";
 export type WidgetTemplate = "classic" | "bubble" | "spotlight";
 export type NameDisplay = "fullNames" | "firstAndLastInitials" | "firstNamesOnly";
 export type DateDisplay = "relative" | "absolute" | "none";
-export type LogoVariant = "icon" | "full" | "none";
+// "none" is intentionally not offered: Google's Places API terms require visible attribution.
+export type LogoVariant = "icon" | "full";
 export type ReviewSort = "newest" | "highest" | "lowest";
+export type FontFamily = "inherit" | "serif" | "sans" | "mono";
+export type MarqueeDirection = "alternate" | "same";
 
 export type WidgetConfig = {
   placeId: string;
@@ -51,8 +54,13 @@ export type WidgetConfig = {
   cardGap: number;
   titleFontSize: number;
   reviewFontSize: number;
+  fontFamily: FontFamily;
   width: number;
   height: number;
+  marqueeRows: number;
+  marqueeDirection: MarqueeDirection;
+  marqueeSpeedPxPerSec: number;
+  pauseOnHover: boolean;
 };
 
 export const DEFAULT_WIDGET_CONFIG: WidgetConfig = {
@@ -99,8 +107,36 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig = {
   cardGap: 12,
   titleFontSize: 22,
   reviewFontSize: 14,
+  fontFamily: "inherit",
   width: 960,
   height: 460,
+  marqueeRows: 1,
+  marqueeDirection: "alternate",
+  marqueeSpeedPxPerSec: 30,
+  pauseOnHover: true,
+};
+
+export const STYLE_PRESETS: Record<"light" | "dark", Partial<WidgetConfig>> = {
+  light: {
+    theme: "light",
+    accentColor: "#0f766e",
+    backgroundColor: "#f7f8fb",
+    cardColor: "#ffffff",
+    textColor: "#172033",
+    starColor: "#f59e0b",
+    linkColor: "#0f766e",
+    buttonColor: "#0f766e",
+  },
+  dark: {
+    theme: "dark",
+    accentColor: "#2dd4bf",
+    backgroundColor: "#0b1220",
+    cardColor: "#151f32",
+    textColor: "#e6ebf5",
+    starColor: "#facc15",
+    linkColor: "#5eead4",
+    buttonColor: "#2dd4bf",
+  },
 };
 
 const colorPattern = /^#[0-9a-fA-F]{6}$/;
@@ -133,7 +169,11 @@ export function normalizeWidgetConfig(value: Partial<WidgetConfig> | null | unde
     placeName: typeof input.placeName === "string" ? input.placeName : DEFAULT_WIDGET_CONFIG.placeName,
     formattedAddress:
       typeof input.formattedAddress === "string" ? input.formattedAddress : DEFAULT_WIDGET_CONFIG.formattedAddress,
-    layout: pick(input.layout, ["carousel", "badge", "grid", "list", "masonry"] as const, DEFAULT_WIDGET_CONFIG.layout),
+    layout: pick(
+      input.layout,
+      ["carousel", "marquee", "badge", "grid", "list", "masonry"] as const,
+      DEFAULT_WIDGET_CONFIG.layout,
+    ),
     theme: pick(input.theme, ["light", "dark"] as const, DEFAULT_WIDGET_CONFIG.theme),
     reviewVariant: pick(input.reviewVariant, ["card", "testimonial"] as const, DEFAULT_WIDGET_CONFIG.reviewVariant),
     template: pick(input.template, ["classic", "bubble", "spotlight"] as const, DEFAULT_WIDGET_CONFIG.template),
@@ -143,7 +183,7 @@ export function normalizeWidgetConfig(value: Partial<WidgetConfig> | null | unde
       DEFAULT_WIDGET_CONFIG.nameDisplay,
     ),
     dateDisplay: pick(input.dateDisplay, ["relative", "absolute", "none"] as const, DEFAULT_WIDGET_CONFIG.dateDisplay),
-    logoVariant: pick(input.logoVariant, ["icon", "full", "none"] as const, DEFAULT_WIDGET_CONFIG.logoVariant),
+    logoVariant: pick(input.logoVariant, ["icon", "full"] as const, DEFAULT_WIDGET_CONFIG.logoVariant),
     customTitle: text(input.customTitle, DEFAULT_WIDGET_CONFIG.customTitle, 120),
     showHeader: typeof input.showHeader === "boolean" ? input.showHeader : DEFAULT_WIDGET_CONFIG.showHeader,
     showAddress: typeof input.showAddress === "boolean" ? input.showAddress : DEFAULT_WIDGET_CONFIG.showAddress,
@@ -188,8 +228,17 @@ export function normalizeWidgetConfig(value: Partial<WidgetConfig> | null | unde
     cardGap: clamp(input.cardGap, DEFAULT_WIDGET_CONFIG.cardGap, 4, 40),
     titleFontSize: clamp(input.titleFontSize, DEFAULT_WIDGET_CONFIG.titleFontSize, 14, 42),
     reviewFontSize: clamp(input.reviewFontSize, DEFAULT_WIDGET_CONFIG.reviewFontSize, 11, 24),
+    fontFamily: pick(input.fontFamily, ["inherit", "serif", "sans", "mono"] as const, DEFAULT_WIDGET_CONFIG.fontFamily),
     width: clamp(input.width, DEFAULT_WIDGET_CONFIG.width, 280, 1800),
     height: clamp(input.height, DEFAULT_WIDGET_CONFIG.height, 180, 1200),
+    marqueeRows: clamp(input.marqueeRows, DEFAULT_WIDGET_CONFIG.marqueeRows, 1, 2),
+    marqueeDirection: pick(
+      input.marqueeDirection,
+      ["alternate", "same"] as const,
+      DEFAULT_WIDGET_CONFIG.marqueeDirection,
+    ),
+    marqueeSpeedPxPerSec: clamp(input.marqueeSpeedPxPerSec, DEFAULT_WIDGET_CONFIG.marqueeSpeedPxPerSec, 5, 200),
+    pauseOnHover: typeof input.pauseOnHover === "boolean" ? input.pauseOnHover : DEFAULT_WIDGET_CONFIG.pauseOnHover,
   };
 }
 
