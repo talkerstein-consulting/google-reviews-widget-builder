@@ -325,7 +325,27 @@ export function WidgetBuilder() {
                   max={4}
                   onChange={(columns) => setPatch({ columns })}
                 />
+                <NumberControl
+                  label="Rows"
+                  value={config.rows}
+                  min={1}
+                  max={4}
+                  onChange={(rows) => setPatch({ rows })}
+                />
+                <NumberControl
+                  label="Card height"
+                  value={config.cardMinHeight}
+                  min={120}
+                  max={520}
+                  step={10}
+                  onChange={(cardMinHeight) => setPatch({ cardMinHeight })}
+                />
               </div>
+              <ToggleControl
+                label="Equal height cards"
+                checked={config.equalHeightCards}
+                onChange={(equalHeightCards) => setPatch({ equalHeightCards })}
+              />
             </section>
 
             <section className="space-y-3">

@@ -143,17 +143,21 @@ function ReviewCard({
 
   return (
     <article
-      className={`break-inside-avoid border p-4 shadow-sm ${centered ? "text-center" : ""}`}
+      className={`break-inside-avoid border p-4 shadow-sm ${centered ? "text-center" : ""} ${
+        config.equalHeightCards ? "flex flex-col" : ""
+      }`}
       style={{
         backgroundColor: config.cardColor,
         borderColor: `${config.accentColor}33`,
         borderRadius: config.cardRadius,
+        minHeight: config.equalHeightCards ? config.cardMinHeight : undefined,
+        height: config.equalHeightCards && config.layout !== "masonry" ? "100%" : undefined,
         marginBottom: config.layout === "masonry" ? config.cardGap : undefined,
       }}
     >
       {config.template === "bubble" ? null : <div className="mb-3">{authorBlock}</div>}
       <p
-        className="leading-6 opacity-90"
+        className={`leading-6 opacity-90 ${config.equalHeightCards ? "flex-1" : ""}`}
         style={{
           fontSize: config.reviewFontSize,
         }}
@@ -224,7 +228,9 @@ function ReviewsLayout({
   place: PlaceSummary;
   reviews: GoogleReview[];
 }) {
-  const visibleReviews = prepareReviews(reviews, config).slice(0, Math.max(1, config.maxItems));
+  const visibleCount =
+    config.layout === "list" ? Math.max(1, config.maxItems) : Math.max(1, config.columns * config.rows);
+  const visibleReviews = prepareReviews(reviews, config).slice(0, visibleCount);
 
   return (
     <section className="rgwb-reviews-widget" style={{ color: config.textColor }}>
@@ -252,11 +258,13 @@ function ReviewsLayout({
         </div>
       ) : (
         <div
-          className={config.layout === "list" ? "grid" : "grid"}
+          className="grid"
           style={{
             gap: config.cardGap,
             gridTemplateColumns:
               config.layout === "list" ? "1fr" : `repeat(${config.columns}, minmax(0, 1fr))`,
+            gridAutoRows: config.equalHeightCards && config.layout !== "list" ? "1fr" : undefined,
+            alignItems: config.equalHeightCards ? "stretch" : "start",
           }}
         >
           {visibleReviews.map((review) => (

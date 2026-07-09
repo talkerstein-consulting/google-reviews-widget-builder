@@ -32,6 +32,9 @@ export type WidgetConfig = {
   maxCharacters: number;
   maxItems: number;
   columns: number;
+  rows: number;
+  equalHeightCards: boolean;
+  cardMinHeight: number;
   carouselAutoplay: boolean;
   carouselSpeed: number;
   showDots: boolean;
@@ -77,6 +80,9 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig = {
   maxCharacters: 220,
   maxItems: 3,
   columns: 3,
+  rows: 1,
+  equalHeightCards: true,
+  cardMinHeight: 220,
   carouselAutoplay: true,
   carouselSpeed: 4000,
   showDots: true,
@@ -155,6 +161,10 @@ export function normalizeWidgetConfig(value: Partial<WidgetConfig> | null | unde
     maxCharacters: clamp(input.maxCharacters, DEFAULT_WIDGET_CONFIG.maxCharacters, 80, 800),
     maxItems: clamp(input.maxItems, DEFAULT_WIDGET_CONFIG.maxItems, 1, 5),
     columns: clamp(input.columns, DEFAULT_WIDGET_CONFIG.columns, 1, 4),
+    rows: clamp(input.rows, DEFAULT_WIDGET_CONFIG.rows, 1, 4),
+    equalHeightCards:
+      typeof input.equalHeightCards === "boolean" ? input.equalHeightCards : DEFAULT_WIDGET_CONFIG.equalHeightCards,
+    cardMinHeight: clamp(input.cardMinHeight, DEFAULT_WIDGET_CONFIG.cardMinHeight, 120, 520),
     carouselAutoplay:
       typeof input.carouselAutoplay === "boolean"
         ? input.carouselAutoplay
