@@ -31,3 +31,29 @@ select,
 textarea {
   font: inherit;
 }
+
+.rgwb-equal-height .slick-track {
+  align-items: stretch !important;
+}
+
+.rgwb-equal-height .slick-slide {
+  height: auto;
+}
+
+.rgwb-equal-height .slick-slide > div,
+.rgwb-equal-height .rgwb-carousel-frame {
+  height: 100%;
+}
+
+.rgwb-equal-height .rgwb-library-card {
+  display: flex !important;
+  flex-direction: column;
+  height: var(--rgwb-card-height) !important;
+  min-height: var(--rgwb-card-height) !important;
+  max-height: var(--rgwb-card-height) !important;
+  overflow: hidden;
+}
+
+.rgwb-equal-height .rgwb-review-text {
+  overflow: hidden;
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { ExternalLink, Star } from "lucide-react";
-import type { ComponentType } from "react";
+import type { ComponentType, CSSProperties } from "react";
 import { ReactGoogleReviews } from "react-google-reviews";
 import "react-google-reviews/dist/index.css";
 import type { GoogleReview, PlaceReviewsPayload, PlaceSummary } from "@/lib/place-types";
@@ -101,6 +101,10 @@ function dateLabel(review: GoogleReview, mode: WidgetConfig["dateDisplay"]) {
   return `${Math.max(1, Math.round(months / 12))}y ago`;
 }
 
+function reviewLineClamp(config: WidgetConfig) {
+  return Math.max(2, Math.floor((config.cardMinHeight - 112) / (config.reviewFontSize * 1.55)));
+}
+
 function ReviewCard({
   config,
   review,
@@ -111,6 +115,7 @@ function ReviewCard({
   const reviewerName = displayName(review, config.nameDisplay);
   const timestamp = dateLabel(review, config.dateDisplay);
   const centered = config.template === "spotlight";
+  const equalCardHeight = config.equalHeightCards ? config.cardMinHeight : undefined;
   const authorBlock = (
     <div className={`flex min-w-0 items-center gap-3 ${centered ? "justify-center" : ""}`}>
       {config.showReviewerPhoto ? (
@@ -150,16 +155,21 @@ function ReviewCard({
         backgroundColor: config.cardColor,
         borderColor: `${config.accentColor}33`,
         borderRadius: config.cardRadius,
-        minHeight: config.equalHeightCards ? config.cardMinHeight : undefined,
-        height: config.equalHeightCards && config.layout !== "masonry" ? "100%" : undefined,
+        height: equalCardHeight,
+        minHeight: equalCardHeight,
+        maxHeight: equalCardHeight,
+        overflow: config.equalHeightCards ? "hidden" : undefined,
         marginBottom: config.layout === "masonry" ? config.cardGap : undefined,
       }}
     >
       {config.template === "bubble" ? null : <div className="mb-3">{authorBlock}</div>}
       <p
-        className={`leading-6 opacity-90 ${config.equalHeightCards ? "flex-1" : ""}`}
+        className={`leading-6 opacity-90 ${config.equalHeightCards ? "flex-1 overflow-hidden" : ""}`}
         style={{
           fontSize: config.reviewFontSize,
+          display: config.equalHeightCards ? "-webkit-box" : undefined,
+          WebkitBoxOrient: config.equalHeightCards ? "vertical" : undefined,
+          WebkitLineClamp: config.equalHeightCards ? reviewLineClamp(config) : undefined,
         }}
       >
         {review.comment.length > config.maxCharacters
@@ -312,6 +322,12 @@ export function ReviewWidget({ config, data, loading, embedded = false }: Review
   const reviews = data?.reviews ?? [];
   const place = data?.place;
   const filteredReviews = prepareReviews(reviews, config);
+  const equalCardHeight = config.equalHeightCards ? config.cardMinHeight : undefined;
+  const wrapperStyle: CSSProperties & { "--rgwb-card-height": string } = {
+    backgroundColor: config.backgroundColor,
+    color: config.textColor,
+    "--rgwb-card-height": `${config.cardMinHeight}px`,
+  };
 
   if (!place || (!loading && reviews.length === 0 && config.layout !== "badge")) {
     return <EmptyWidget config={config} loading={loading} />;
@@ -337,8 +353,21 @@ export function ReviewWidget({ config, data, loading, embedded = false }: Review
       borderColor: `${config.accentColor}33`,
       color: config.textColor,
       borderRadius: config.cardRadius,
+      height: equalCardHeight,
+      minHeight: equalCardHeight,
+      maxHeight: equalCardHeight,
+      overflow: config.equalHeightCards ? "hidden" : undefined,
+      display: config.equalHeightCards ? "flex" : undefined,
+      flexDirection: config.equalHeightCards ? "column" : undefined,
     },
-    reviewTextStyle: { color: config.textColor, fontSize: config.reviewFontSize },
+    reviewTextStyle: {
+      color: config.textColor,
+      fontSize: config.reviewFontSize,
+      overflow: config.equalHeightCards ? "hidden" : undefined,
+      display: config.equalHeightCards ? "-webkit-box" : undefined,
+      WebkitBoxOrient: config.equalHeightCards ? "vertical" : undefined,
+      WebkitLineClamp: config.equalHeightCards ? reviewLineClamp(config) : undefined,
+    },
     reviewerNameStyle: { color: config.textColor },
     reviewerDateStyle: { color: config.textColor, opacity: 0.7 },
     badgeContainerStyle: {
@@ -350,15 +379,18 @@ export function ReviewWidget({ config, data, loading, embedded = false }: Review
     badgeRatingStyle: { color: config.textColor },
     badgeLabelStyle: { color: config.textColor },
     badgeLinkStyle: { color: config.linkColor },
+    carouselCardClassName: config.equalHeightCards ? "rgwb-carousel-frame" : undefined,
+    carouselCardStyle: config.equalHeightCards ? { height: "100%" } : undefined,
+    reviewCardClassName: config.equalHeightCards ? "rgwb-library-card" : undefined,
+    reviewTextClassName: config.equalHeightCards ? "rgwb-review-text" : undefined,
   };
 
   return (
     <div
-      className={embedded ? "h-full w-full overflow-hidden p-3" : "w-full"}
-      style={{
-        backgroundColor: config.backgroundColor,
-        color: config.textColor,
-      }}
+      className={`${embedded ? "h-full w-full overflow-hidden p-3" : "w-full"} ${
+        config.equalHeightCards ? "rgwb-equal-height" : ""
+      }`}
+      style={wrapperStyle}
     >
       {["grid", "list", "masonry"].includes(config.layout) && place ? (
         <ReviewsLayout config={config} place={place} reviews={reviews} />
