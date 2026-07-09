@@ -32,6 +32,39 @@ function StarRow({ rating, color }: { rating: number; color: string }) {
   );
 }
 
+function tokenList(value: string) {
+  return value
+    .split(",")
+    .map((token) => token.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function prepareReviews(reviews: GoogleReview[], config: WidgetConfig) {
+  const excludedKeywords = tokenList(config.excludeKeywords);
+  const excludedReviewers = tokenList(config.excludeReviewers);
+
+  return reviews
+    .filter((review) => (config.hideEmptyReviews ? review.comment.trim().length > 0 : true))
+    .filter((review) => review.starRating >= config.minRating)
+    .filter((review) => {
+      const comment = review.comment.toLowerCase();
+      return !excludedKeywords.some((keyword) => comment.includes(keyword));
+    })
+    .filter((review) => {
+      const reviewer = review.reviewer.displayName.toLowerCase();
+      return !excludedReviewers.some((name) => reviewer.includes(name));
+    })
+    .sort((a, b) => {
+      if (config.reviewSort === "highest") {
+        return b.starRating - a.starRating;
+      }
+      if (config.reviewSort === "lowest") {
+        return a.starRating - b.starRating;
+      }
+      return new Date(b.createTime || 0).getTime() - new Date(a.createTime || 0).getTime();
+    });
+}
+
 function displayName(review: GoogleReview, mode: WidgetConfig["nameDisplay"]) {
   const name = review.reviewer.displayName;
   if (mode === "fullNames") {
@@ -68,7 +101,121 @@ function dateLabel(review: GoogleReview, mode: WidgetConfig["dateDisplay"]) {
   return `${Math.max(1, Math.round(months / 12))}y ago`;
 }
 
-function GridWidget({
+function ReviewCard({
+  config,
+  review,
+}: {
+  config: WidgetConfig;
+  review: GoogleReview;
+}) {
+  const reviewerName = displayName(review, config.nameDisplay);
+  const timestamp = dateLabel(review, config.dateDisplay);
+  const centered = config.template === "spotlight";
+  const authorBlock = (
+    <div className={`flex min-w-0 items-center gap-3 ${centered ? "justify-center" : ""}`}>
+      {config.showReviewerPhoto ? (
+        review.reviewer.profilePhotoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={review.reviewer.profilePhotoUrl}
+            alt=""
+            className="h-9 w-9 rounded-full object-cover"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <div
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
+            style={{ backgroundColor: config.accentColor }}
+          >
+            {reviewerName.charAt(0)}
+          </div>
+        )
+      ) : null}
+      <div className="min-w-0">
+        <div className="truncate font-medium">{reviewerName}</div>
+        <div className={`flex flex-wrap items-center gap-2 text-xs opacity-70 ${centered ? "justify-center" : ""}`}>
+          <StarRow rating={review.starRating} color={config.starColor} />
+          {timestamp ? <span>{timestamp}</span> : null}
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <article
+      className={`break-inside-avoid border p-4 shadow-sm ${centered ? "text-center" : ""}`}
+      style={{
+        backgroundColor: config.cardColor,
+        borderColor: `${config.accentColor}33`,
+        borderRadius: config.cardRadius,
+        marginBottom: config.layout === "masonry" ? config.cardGap : undefined,
+      }}
+    >
+      {config.template === "bubble" ? null : <div className="mb-3">{authorBlock}</div>}
+      <p
+        className="leading-6 opacity-90"
+        style={{
+          fontSize: config.reviewFontSize,
+        }}
+      >
+        {review.comment.length > config.maxCharacters
+          ? `${review.comment.slice(0, config.maxCharacters).trim()}...`
+          : review.comment}
+      </p>
+      {config.template === "bubble" ? <div className="mt-4 border-t pt-3">{authorBlock}</div> : null}
+    </article>
+  );
+}
+
+function Header({
+  config,
+  place,
+}: {
+  config: WidgetConfig;
+  place: PlaceSummary;
+}) {
+  if (!config.showHeader) {
+    return null;
+  }
+
+  const title = config.customTitle.trim() || place.name;
+
+  return (
+    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <div className="text-sm font-medium opacity-70">Google reviews</div>
+        <h2 className="font-semibold" style={{ fontSize: config.titleFontSize }}>
+          {title}
+        </h2>
+        {config.showAddress && place.formattedAddress ? (
+          <div className="mt-1 max-w-xl text-sm opacity-70">{place.formattedAddress}</div>
+        ) : null}
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        {config.showRatingSummary && place.averageRating ? (
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-semibold">{place.averageRating.toFixed(1)}</span>
+            <StarRow rating={place.averageRating} color={config.starColor} />
+            {place.totalReviewCount ? <span className="text-sm opacity-70">({place.totalReviewCount})</span> : null}
+          </div>
+        ) : null}
+        {config.showReviewButton && place.profileUrl ? (
+          <a
+            href={place.profileUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-white"
+            style={{ backgroundColor: config.buttonColor }}
+          >
+            {config.reviewButtonLabel} <ExternalLink className="h-4 w-4" />
+          </a>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ReviewsLayout({
   config,
   place,
   reviews,
@@ -77,68 +224,46 @@ function GridWidget({
   place: PlaceSummary;
   reviews: GoogleReview[];
 }) {
-  const visibleReviews = reviews
-    .filter((review) => (config.hideEmptyReviews ? review.comment.trim().length > 0 : true))
-    .slice(0, Math.max(1, config.maxItems));
+  const visibleReviews = prepareReviews(reviews, config).slice(0, Math.max(1, config.maxItems));
 
   return (
-    <section className="rgwb-grid-widget" style={{ color: config.textColor }}>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="text-sm font-medium opacity-70">Google reviews</div>
-          <h2 className="text-xl font-semibold">{place.name}</h2>
-        </div>
-        {place.averageRating ? (
-          <div className="flex items-center gap-2">
-            <span className="text-lg font-semibold">{place.averageRating.toFixed(1)}</span>
-            <StarRow rating={place.averageRating} color={config.accentColor} />
-          </div>
-        ) : null}
-      </div>
+    <section className="rgwb-reviews-widget" style={{ color: config.textColor }}>
+      <Header config={config} place={place} />
 
-      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-        {visibleReviews.map((review) => (
-          <article
-            key={`${review.reviewId}-${review.reviewer.displayName}`}
-            className="min-h-44 rounded-lg border p-4 shadow-sm"
+      {visibleReviews.length === 0 ? (
+        <div
+          className="rounded-lg border border-dashed p-6 text-center text-sm opacity-80"
+          style={{ borderColor: `${config.accentColor}55` }}
+        >
+          No reviews match the current filters.
+        </div>
+      ) : config.layout === "masonry" ? (
+        <div>
+          <div
             style={{
-              backgroundColor: config.cardColor,
-              borderColor: `${config.accentColor}33`,
+              columnCount: config.columns,
+              columnGap: config.cardGap,
             }}
           >
-            <div className="mb-3 flex items-start gap-3">
-              {review.reviewer.profilePhotoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={review.reviewer.profilePhotoUrl}
-                  alt=""
-                  className="h-9 w-9 rounded-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <div
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold text-white"
-                  style={{ backgroundColor: config.accentColor }}
-                >
-                  {displayName(review, "firstNamesOnly").charAt(0)}
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-medium">{displayName(review, config.nameDisplay)}</div>
-                <div className="flex flex-wrap items-center gap-2 text-xs opacity-70">
-                  <StarRow rating={review.starRating} color={config.accentColor} />
-                  {dateLabel(review, config.dateDisplay) ? <span>{dateLabel(review, config.dateDisplay)}</span> : null}
-                </div>
-              </div>
-            </div>
-            <p className="text-sm leading-6 opacity-90">
-              {review.comment.length > config.maxCharacters
-                ? `${review.comment.slice(0, config.maxCharacters).trim()}...`
-                : review.comment}
-            </p>
-          </article>
-        ))}
-      </div>
+            {visibleReviews.map((review) => (
+              <ReviewCard key={`${review.reviewId}-${review.reviewer.displayName}`} config={config} review={review} />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div
+          className={config.layout === "list" ? "grid" : "grid"}
+          style={{
+            gap: config.cardGap,
+            gridTemplateColumns:
+              config.layout === "list" ? "1fr" : `repeat(${config.columns}, minmax(0, 1fr))`,
+          }}
+        >
+          {visibleReviews.map((review) => (
+            <ReviewCard key={`${review.reviewId}-${review.reviewer.displayName}`} config={config} review={review} />
+          ))}
+        </div>
+      )}
 
       {place.profileUrl ? (
         <a
@@ -146,7 +271,7 @@ function GridWidget({
           target="_blank"
           rel="noreferrer"
           className="mt-4 inline-flex items-center gap-2 text-sm font-medium"
-          style={{ color: config.accentColor }}
+          style={{ color: config.linkColor }}
         >
           View on Google <ExternalLink className="h-4 w-4" />
         </a>
@@ -178,13 +303,14 @@ function EmptyWidget({ config, loading }: { config: WidgetConfig; loading?: bool
 export function ReviewWidget({ config, data, loading, embedded = false }: ReviewWidgetProps) {
   const reviews = data?.reviews ?? [];
   const place = data?.place;
+  const filteredReviews = prepareReviews(reviews, config);
 
   if (!place || (!loading && reviews.length === 0 && config.layout !== "badge")) {
     return <EmptyWidget config={config} loading={loading} />;
   }
 
   const commonProps = {
-    reviews,
+    reviews: filteredReviews,
     isLoading: loading,
     theme: config.theme,
     nameDisplay: config.nameDisplay,
@@ -202,20 +328,20 @@ export function ReviewWidget({ config, data, loading, embedded = false }: Review
       backgroundColor: config.cardColor,
       borderColor: `${config.accentColor}33`,
       color: config.textColor,
-      borderRadius: 8,
+      borderRadius: config.cardRadius,
     },
-    reviewTextStyle: { color: config.textColor },
+    reviewTextStyle: { color: config.textColor, fontSize: config.reviewFontSize },
     reviewerNameStyle: { color: config.textColor },
     reviewerDateStyle: { color: config.textColor, opacity: 0.7 },
     badgeContainerStyle: {
       backgroundColor: config.cardColor,
       color: config.textColor,
       borderColor: `${config.accentColor}33`,
-      borderRadius: 8,
+      borderRadius: config.cardRadius,
     },
     badgeRatingStyle: { color: config.textColor },
     badgeLabelStyle: { color: config.textColor },
-    badgeLinkStyle: { color: config.accentColor },
+    badgeLinkStyle: { color: config.linkColor },
   };
 
   return (
@@ -226,8 +352,8 @@ export function ReviewWidget({ config, data, loading, embedded = false }: Review
         color: config.textColor,
       }}
     >
-      {config.layout === "grid" && place ? (
-        <GridWidget config={config} place={place} reviews={reviews} />
+      {["grid", "list", "masonry"].includes(config.layout) && place ? (
+        <ReviewsLayout config={config} place={place} reviews={reviews} />
       ) : config.layout === "badge" ? (
         <GoogleReviews {...commonProps} layout="badge" badgeLabel="Google Rating" />
       ) : (

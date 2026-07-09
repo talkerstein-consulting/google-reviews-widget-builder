@@ -130,6 +130,30 @@ function ColorControl({
   );
 }
 
+function TextControl({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  placeholder?: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+      {label}
+      <input
+        className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition focus:border-teal-700 focus:ring-2 focus:ring-teal-700/15"
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
+  );
+}
+
 function LayoutButton({
   layout,
   active,
@@ -255,8 +279,8 @@ export function WidgetBuilder() {
                 <Eye className="h-4 w-4 text-teal-700" />
                 Layout
               </div>
-              <div className="grid grid-cols-3 gap-2 rounded-lg bg-slate-100 p-1">
-                {(["carousel", "grid", "badge"] as const).map((layout) => (
+              <div className="grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1">
+                {(["carousel", "grid", "list", "masonry", "badge"] as const).map((layout) => (
                   <LayoutButton
                     key={layout}
                     layout={layout}
@@ -284,6 +308,23 @@ export function WidgetBuilder() {
                     { value: "testimonial", label: "Testimonial" },
                   ]}
                 />
+                <SelectControl
+                  label="Template"
+                  value={config.template}
+                  onChange={(template) => setPatch({ template })}
+                  options={[
+                    { value: "classic", label: "Classic" },
+                    { value: "bubble", label: "Bubble" },
+                    { value: "spotlight", label: "Spotlight" },
+                  ]}
+                />
+                <NumberControl
+                  label="Columns"
+                  value={config.columns}
+                  min={1}
+                  max={4}
+                  onChange={(columns) => setPatch({ columns })}
+                />
               </div>
             </section>
 
@@ -297,6 +338,54 @@ export function WidgetBuilder() {
                 <ColorControl label="Canvas" value={config.backgroundColor} onChange={(backgroundColor) => setPatch({ backgroundColor })} />
                 <ColorControl label="Card" value={config.cardColor} onChange={(cardColor) => setPatch({ cardColor })} />
                 <ColorControl label="Text" value={config.textColor} onChange={(textColor) => setPatch({ textColor })} />
+                <ColorControl label="Stars" value={config.starColor} onChange={(starColor) => setPatch({ starColor })} />
+                <ColorControl label="Links" value={config.linkColor} onChange={(linkColor) => setPatch({ linkColor })} />
+                <ColorControl label="Button" value={config.buttonColor} onChange={(buttonColor) => setPatch({ buttonColor })} />
+                <NumberControl label="Radius" value={config.cardRadius} min={0} max={32} onChange={(cardRadius) => setPatch({ cardRadius })} />
+                <NumberControl label="Gap" value={config.cardGap} min={4} max={40} onChange={(cardGap) => setPatch({ cardGap })} />
+                <NumberControl
+                  label="Title size"
+                  value={config.titleFontSize}
+                  min={14}
+                  max={42}
+                  onChange={(titleFontSize) => setPatch({ titleFontSize })}
+                />
+                <NumberControl
+                  label="Review size"
+                  value={config.reviewFontSize}
+                  min={11}
+                  max={24}
+                  onChange={(reviewFontSize) => setPatch({ reviewFontSize })}
+                />
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <div className="text-sm font-semibold text-slate-900">Header</div>
+              <TextControl
+                label="Custom title"
+                value={config.customTitle}
+                placeholder="Defaults to place name"
+                onChange={(customTitle) => setPatch({ customTitle })}
+              />
+              <TextControl
+                label="Review button"
+                value={config.reviewButtonLabel}
+                onChange={(reviewButtonLabel) => setPatch({ reviewButtonLabel })}
+              />
+              <div className="grid gap-2">
+                <ToggleControl label="Show header" checked={config.showHeader} onChange={(showHeader) => setPatch({ showHeader })} />
+                <ToggleControl label="Show address" checked={config.showAddress} onChange={(showAddress) => setPatch({ showAddress })} />
+                <ToggleControl
+                  label="Show rating summary"
+                  checked={config.showRatingSummary}
+                  onChange={(showRatingSummary) => setPatch({ showRatingSummary })}
+                />
+                <ToggleControl
+                  label="Show review button"
+                  checked={config.showReviewButton}
+                  onChange={(showReviewButton) => setPatch({ showReviewButton })}
+                />
               </div>
             </section>
 
@@ -340,17 +429,63 @@ export function WidgetBuilder() {
                   max={800}
                   onChange={(maxCharacters) => setPatch({ maxCharacters })}
                 />
+                <NumberControl
+                  label="Reviews"
+                  value={config.maxItems}
+                  min={1}
+                  max={5}
+                  onChange={(maxItems) => setPatch({ maxItems })}
+                />
               </div>
               <div className="grid gap-2">
                 <ToggleControl label="Hide empty reviews" checked={config.hideEmptyReviews} onChange={(hideEmptyReviews) => setPatch({ hideEmptyReviews })} />
                 <ToggleControl label="Use original language" checked={config.disableTranslation} onChange={(disableTranslation) => setPatch({ disableTranslation })} />
+                <ToggleControl
+                  label="Show reviewer photos"
+                  checked={config.showReviewerPhoto}
+                  onChange={(showReviewerPhoto) => setPatch({ showReviewerPhoto })}
+                />
               </div>
+            </section>
+
+            <section className="space-y-3">
+              <div className="text-sm font-semibold text-slate-900">Filters</div>
+              <div className="grid grid-cols-2 gap-3">
+                <NumberControl
+                  label="Minimum rating"
+                  value={config.minRating}
+                  min={1}
+                  max={5}
+                  onChange={(minRating) => setPatch({ minRating })}
+                />
+                <SelectControl
+                  label="Sort"
+                  value={config.reviewSort}
+                  onChange={(reviewSort) => setPatch({ reviewSort })}
+                  options={[
+                    { value: "newest", label: "Newest" },
+                    { value: "highest", label: "Highest" },
+                    { value: "lowest", label: "Lowest" },
+                  ]}
+                />
+              </div>
+              <TextControl
+                label="Exclude keywords"
+                value={config.excludeKeywords}
+                placeholder="comma, separated"
+                onChange={(excludeKeywords) => setPatch({ excludeKeywords })}
+              />
+              <TextControl
+                label="Exclude reviewers"
+                value={config.excludeReviewers}
+                placeholder="comma, separated"
+                onChange={(excludeReviewers) => setPatch({ excludeReviewers })}
+              />
             </section>
 
             <section className="space-y-3">
               <div className="text-sm font-semibold text-slate-900">Carousel</div>
               <div className="grid grid-cols-2 gap-3">
-                <NumberControl label="Items" value={config.maxItems} min={1} max={5} onChange={(maxItems) => setPatch({ maxItems })} />
                 <NumberControl
                   label="Speed"
                   value={config.carouselSpeed}
