@@ -9,6 +9,7 @@ export async function GET() {
     return NextResponse.json({ accounts });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load Google Business Profile accounts.";
+    console.error("Google Business Profile accounts error:", message);
     return NextResponse.json(
       { error: message },
       { status: message.includes("not connected") ? 401 : 502 },

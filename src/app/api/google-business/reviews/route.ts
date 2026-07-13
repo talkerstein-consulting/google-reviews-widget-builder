@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(payload);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load Google Business Profile reviews.";
+    console.error("Google Business Profile reviews error:", message);
     return NextResponse.json(
       { error: message },
       { status: message.includes("not connected") ? 401 : 502 },

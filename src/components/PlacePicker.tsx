@@ -62,7 +62,7 @@ export function PlacePicker({ value, onPick }: PlacePickerProps) {
 
     try {
       const response = await fetch("/api/google-business/accounts", { cache: "no-store" });
-      if (response.status === 502 || response.status === 401) {
+      if (response.status === 401) {
         throw new Error("Connect Google Business Profile to load accounts.");
       }
       if (!response.ok) {

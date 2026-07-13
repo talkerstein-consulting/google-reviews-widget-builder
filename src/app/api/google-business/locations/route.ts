@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load Google Business Profile locations.";
+    console.error("Google Business Profile locations error:", message);
     return NextResponse.json(
       { error: message },
       { status: message.includes("not connected") ? 401 : 502 },
