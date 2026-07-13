@@ -4,7 +4,7 @@ export type ReviewVariant = "card" | "testimonial";
 export type WidgetTemplate = "classic" | "bubble" | "spotlight";
 export type NameDisplay = "fullNames" | "firstAndLastInitials" | "firstNamesOnly";
 export type DateDisplay = "relative" | "absolute" | "none";
-// "none" is intentionally not offered: Google's Places API terms require visible attribution.
+// "none" is intentionally not offered: Google review widgets need visible attribution.
 export type LogoVariant = "icon" | "full";
 export type ReviewSort = "newest" | "highest" | "lowest";
 export type FontFamily = "inherit" | "serif" | "sans" | "mono";
@@ -14,6 +14,7 @@ export type WidgetConfig = {
   placeId: string;
   placeName: string;
   formattedAddress: string;
+  profileUrl: string;
   layout: WidgetLayout;
   theme: WidgetTheme;
   reviewVariant: ReviewVariant;
@@ -67,6 +68,7 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig = {
   placeId: "",
   placeName: "",
   formattedAddress: "",
+  profileUrl: "",
   layout: "carousel",
   theme: "light",
   reviewVariant: "card",
@@ -169,6 +171,7 @@ export function normalizeWidgetConfig(value: Partial<WidgetConfig> | null | unde
     placeName: typeof input.placeName === "string" ? input.placeName : DEFAULT_WIDGET_CONFIG.placeName,
     formattedAddress:
       typeof input.formattedAddress === "string" ? input.formattedAddress : DEFAULT_WIDGET_CONFIG.formattedAddress,
+    profileUrl: typeof input.profileUrl === "string" ? input.profileUrl : DEFAULT_WIDGET_CONFIG.profileUrl,
     layout: pick(
       input.layout,
       ["carousel", "marquee", "badge", "grid", "list", "masonry"] as const,

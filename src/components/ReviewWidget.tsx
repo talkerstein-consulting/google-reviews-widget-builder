@@ -19,7 +19,7 @@ const FONT_STACKS: Record<FontFamily, string | undefined> = {
   mono: '"SFMono-Regular", ui-monospace, monospace',
 };
 
-// Google's Places API terms require visible attribution back to Google — this mark
+// Google review widgets need visible attribution back to Google - this mark
 // is always rendered (icon or full) and is not a config option that can be disabled.
 function GoogleMark({ variant, color }: { variant: LogoVariant; color: string }) {
   return (
@@ -208,7 +208,7 @@ function Header({
   place: PlaceSummary;
 }) {
   if (!config.showHeader) {
-    // Header text/CTA can be hidden, but Google attribution cannot — show the bare minimum.
+    // Header text/CTA can be hidden, but Google attribution cannot - show the bare minimum.
     return (
       <div className="mb-3">
         <GoogleMark variant={config.logoVariant} color={config.textColor} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Clipboard, Code2, Eye, Palette, Settings2 } from "lucide-react";
 import { PlacePicker } from "@/components/PlacePicker";
 import { ReviewWidget } from "@/components/ReviewWidget";
@@ -184,6 +184,11 @@ export function WidgetBuilder() {
   const [error, setError] = useState("");
   const [origin, setOrigin] = useState("https://your-vercel-domain.vercel.app");
   const [copied, setCopied] = useState(false);
+  const selectedLocationMetadataRef = useRef({
+    placeName: "",
+    formattedAddress: "",
+    profileUrl: "",
+  });
 
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -194,6 +199,14 @@ export function WidgetBuilder() {
   }, []);
 
   useEffect(() => {
+    selectedLocationMetadataRef.current = {
+      placeName: config.placeName,
+      formattedAddress: config.formattedAddress,
+      profileUrl: config.profileUrl,
+    };
+  }, [config.formattedAddress, config.placeName, config.profileUrl]);
+
+  useEffect(() => {
     if (!config.placeId) {
       setData(null);
       setState("idle");
@@ -201,15 +214,18 @@ export function WidgetBuilder() {
     }
 
     const controller = new AbortController();
+    const metadata = selectedLocationMetadataRef.current;
     const params = new URLSearchParams({
-      placeId: config.placeId,
-      disableTranslation: String(config.disableTranslation),
+      locationName: config.placeId,
+      placeName: metadata.placeName,
+      formattedAddress: metadata.formattedAddress,
+      profileUrl: metadata.profileUrl,
     });
 
     setState("loading");
     setError("");
 
-    fetch(`/api/place?${params}`, { signal: controller.signal })
+    fetch(`/api/google-business/reviews?${params}`, { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) {
           const body = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -224,6 +240,7 @@ export function WidgetBuilder() {
           updateConfig(current, {
             placeName: payload.place.name,
             formattedAddress: payload.place.formattedAddress,
+            profileUrl: payload.place.profileUrl || current.profileUrl,
           }),
         );
       })
@@ -237,7 +254,7 @@ export function WidgetBuilder() {
       });
 
     return () => controller.abort();
-  }, [config.placeId, config.disableTranslation]);
+  }, [config.placeId]);
 
   const embedUrl = useMemo(() => buildEmbedUrl(origin, config), [config, origin]);
   const iframeCode = useMemo(() => {
@@ -258,7 +275,7 @@ export function WidgetBuilder() {
           <div className="mb-5 flex items-center justify-between">
             <div>
               <h1 className="text-xl font-semibold tracking-normal">Reviews widget builder</h1>
-              <p className="text-sm text-slate-500">Google Places iframe generator</p>
+              <p className="text-sm text-slate-500">Google Business Profile iframe generator</p>
             </div>
             <Settings2 className="h-5 w-5 text-teal-700" />
           </div>
@@ -271,6 +288,7 @@ export function WidgetBuilder() {
                   placeId: place.placeId,
                   placeName: place.name,
                   formattedAddress: place.formattedAddress,
+                  profileUrl: place.profileUrl || "",
                 })
               }
             />
@@ -486,7 +504,6 @@ export function WidgetBuilder() {
               </div>
               <div className="grid gap-2">
                 <ToggleControl label="Hide empty reviews" checked={config.hideEmptyReviews} onChange={(hideEmptyReviews) => setPatch({ hideEmptyReviews })} />
-                <ToggleControl label="Use original language" checked={config.disableTranslation} onChange={(disableTranslation) => setPatch({ disableTranslation })} />
                 <ToggleControl
                   label="Show reviewer photos"
                   checked={config.showReviewerPhoto}
@@ -650,8 +667,9 @@ export function WidgetBuilder() {
             <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
               <div className="mb-1 text-sm font-semibold text-slate-900">Vercel env vars</div>
               <div className="space-y-1 font-mono text-xs text-slate-600">
-                <div>GOOGLE_PLACES_API_KEY</div>
-                <div>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</div>
+                <div>GOOGLE_CLIENT_ID</div>
+                <div>GOOGLE_CLIENT_SECRET</div>
+                <div>GOOGLE_REDIRECT_URI</div>
               </div>
             </div>
           </div>

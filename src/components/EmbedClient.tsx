@@ -23,12 +23,14 @@ export function EmbedClient({ encodedConfig }: EmbedClientProps) {
 
     const controller = new AbortController();
     const params = new URLSearchParams({
-      placeId: config.placeId,
-      disableTranslation: String(config.disableTranslation),
+      locationName: config.placeId,
+      placeName: config.placeName,
+      formattedAddress: config.formattedAddress,
+      profileUrl: config.profileUrl,
     });
 
     setLoading(true);
-    fetch(`/api/place?${params}`, { signal: controller.signal })
+    fetch(`/api/google-business/reviews?${params}`, { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) {
           throw new Error("Unable to load reviews.");
@@ -51,7 +53,7 @@ export function EmbedClient({ encodedConfig }: EmbedClientProps) {
       });
 
     return () => controller.abort();
-  }, [config.placeId, config.disableTranslation]);
+  }, [config.formattedAddress, config.placeId, config.placeName, config.profileUrl]);
 
   return (
     <main className="min-h-screen" style={{ backgroundColor: config.backgroundColor }}>
